@@ -26,6 +26,8 @@ Aslında direkt indirip çalıştırabileceğiniz bir .exe dosyası da var ama W
 
 İsteyenler için *source* adlı klasörde Python dosyası da var. Direkt oradan da çalıştırabilirsiniz ama yine .json gerek. En kötü, onu yanına kopyalayın. Birkaç module'u da pip install ile indirmeniz gerekir.
 
+Unutmadan söyleyeyim Chrome gerekiyor, yani önce Chrome indirip kütüphanenin rezervasyon sayfasında KU mailiniz ile hesabınıza giriş yapmanız gerek.
+
 ---
 
 **Created by Trevorego**
