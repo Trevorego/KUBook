@@ -5,6 +5,8 @@ from selenium.webdriver.common.by import By
 import time
 import psutil
 import json
+import threading
+import sys
 
 def terminate_process_by_name(process_name):
     for process in psutil.process_iter(['pid', 'name']):
@@ -18,6 +20,30 @@ def terminate_process_by_name(process_name):
                 pass  # Process already terminated or doesn't exist
             except psutil.AccessDenied:
                 print(f"Access Denied: Cannot terminate {process_name}")
+                
+def is_browser_open(driver):
+    try:
+        driver.title
+        return True
+    except:
+        return False
+                
+def monitor_browser(driver):
+    """
+    Monitors if the browser is still open. If closed, exits the program.
+    """
+    try:
+        while True:
+            if not is_browser_open(driver):
+                print("Browser closed. Exiting script.")
+                driver.quit()
+                terminate_process_by_name('KUBook.exe')
+                sys.exit()
+            time.sleep(1) 
+    except Exception as e:
+        print(f"Error in monitor thread: {e}")
+        driver.quit()
+        sys.exit()
 
 def get_config():
     with open("config.json", "r") as file:
@@ -62,18 +88,25 @@ def check_available(driver, desired_date):
             continue
 
 def get_to_date(driver, desired_date):
-    print("1")
     next_button = driver.find_element(By.XPATH, "//button[@aria-label='Next']")
     next_button.click()
+ 
+    site_date = [int(x) if int(x) < 2000 else int(x[2:4]) for x in driver.find_element(By.XPATH, "//h2[@class='fc-toolbar-title']").text.split("/")]
     
-    while int(driver.find_element(By.XPATH, "//h2[@class='fc-toolbar-title']").text[0:2]) != desired_date[0] or int(driver.find_element(By.XPATH, "//h2[@class='fc-toolbar-title']").text[3:5]) != desired_date[1] or int(driver.find_element(By.XPATH, "//h2[@class='fc-toolbar-title']").text[8:10]) != desired_date[2]:
+    while site_date[0] != desired_date[0] or site_date[1] != desired_date[1] or site_date[2] != desired_date[2]:
         next_button.click()
+        for e in site_date:
+            print(e)
+        for e in desired_date:
+            print(e)
+        site_date = [int(x) if int(x) < 2000 else int(x[2:4]) for x in driver.find_element(By.XPATH, "//h2[@class='fc-toolbar-title']").text.split("/")]
 
 def select_slots(driver, room, desired_date, starting_time):
     print("2")
     while True:
         try:
-            a_element = driver.find_element(By.XPATH, f"//a[@title='{str(starting_time).zfill(2)}:00 {str(desired_date[0]).zfill(2)}/{str(desired_date[1]).zfill(2)}/20{desired_date[2]} - {room} - Available']")
+            a_element = driver.find_element(By.XPATH, f"//a[@title='{str(starting_time).zfill(2)}:00 {str(desired_date[0])}/{str(desired_date[1]).zfill(2)}/20{desired_date[2]} - {room} - Available']")
+            print(a_element.text)
             select_button = a_element.find_element(By.XPATH, "./div")
             driver.execute_script("arguments[0].scrollIntoView(true);", select_button)
             select_button.click()
@@ -83,7 +116,7 @@ def select_slots(driver, room, desired_date, starting_time):
             continue
     while True:
         try:
-            a_element = driver.find_element(By.XPATH, f"//a[@title='{str(starting_time + 1).zfill(2)}:00 {str(desired_date[0]).zfill(2)}/{str(desired_date[1]).zfill(2)}/20{desired_date[2]} - {room} - Available']")
+            a_element = driver.find_element(By.XPATH, f"//a[@title='{str(starting_time + 1).zfill(2)}:00 {str(desired_date[0])}/{str(desired_date[1]).zfill(2)}/20{desired_date[2]} - {room} - Available']")
             select_button = a_element.find_element(By.XPATH, "./div")
             driver.execute_script("arguments[0].scrollIntoView(true);", select_button)
             select_button.click()
@@ -132,6 +165,10 @@ def main():
     desired_date, room, starting_time = get_config()
     
     driver = setup()
+    
+    monitor_thread = threading.Thread(target=monitor_browser, args=(driver,))
+    monitor_thread.daemon = True  # Ensures the thread closes if the main program exits
+    monitor_thread.start()
     
     book(driver, desired_date=desired_date, room=room, starting_time=starting_time)
 
