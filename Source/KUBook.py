@@ -101,11 +101,15 @@ def get_to_date(driver, desired_date):
             print(e)
         site_date = [int(x) if int(x) < 2000 else int(x[2:4]) for x in driver.find_element(By.XPATH, "//h2[@class='fc-toolbar-title']").text.split("/")]
 
-def select_slots(driver, room, desired_date, starting_time):
+def select_slots(driver, room, desired_date, desired_time):
     print("2")
+    starting_time = time.time()
     while True:
         try:
-            a_element = driver.find_element(By.XPATH, f"//a[@title='{str(starting_time).zfill(2)}:00 {str(desired_date[0])}/{str(desired_date[1]).zfill(2)}/20{desired_date[2]} - {room} - Available']")
+            if time.time() - starting_time > 1:
+                driver.get("https://ku.libcal.com/reserve/teamstudy")
+                return False
+            a_element = driver.find_element(By.XPATH, f"//a[@title='{str(desired_time).zfill(2)}:00 {str(desired_date[0])}/{str(desired_date[1]).zfill(2)}/20{desired_date[2]} - {room} - Available']")
             print(a_element.text)
             select_button = a_element.find_element(By.XPATH, "./div")
             driver.execute_script("arguments[0].scrollIntoView(true);", select_button)
@@ -116,7 +120,7 @@ def select_slots(driver, room, desired_date, starting_time):
             continue
     while True:
         try:
-            a_element = driver.find_element(By.XPATH, f"//a[@title='{str(starting_time + 1).zfill(2)}:00 {str(desired_date[0])}/{str(desired_date[1]).zfill(2)}/20{desired_date[2]} - {room} - Available']")
+            a_element = driver.find_element(By.XPATH, f"//a[@title='{str(desired_time + 1).zfill(2)}:00 {str(desired_date[0])}/{str(desired_date[1]).zfill(2)}/20{desired_date[2]} - {room} - Available']")
             select_button = a_element.find_element(By.XPATH, "./div")
             driver.execute_script("arguments[0].scrollIntoView(true);", select_button)
             select_button.click()
@@ -124,6 +128,7 @@ def select_slots(driver, room, desired_date, starting_time):
             break
         except Exception:
             continue
+    return True
         
 def confirmation(driver):
     while True:
@@ -152,17 +157,19 @@ def confirmation(driver):
             continue
     time.sleep(1000)
 
-def book(driver, desired_date, room, starting_time):
-    get_to_date(driver, desired_date)
+def book(driver, desired_date, room, desired_time):    
+    can_continue = 0
+    while  1 != can_continue:
+        get_to_date(driver, desired_date)
+        
+        check_available(driver, desired_date=desired_date)
     
-    check_available(driver, desired_date=desired_date)
-    
-    select_slots(driver, room=room, desired_date=desired_date, starting_time=starting_time)
+        can_continue = select_slots(driver, room=room, desired_date=desired_date, desired_time=desired_time)
     
     confirmation(driver)
 
 def main():
-    desired_date, room, starting_time = get_config()
+    desired_date, room, desired_time = get_config()
     
     driver = setup()
     
@@ -170,7 +177,7 @@ def main():
     monitor_thread.daemon = True  # Ensures the thread closes if the main program exits
     monitor_thread.start()
     
-    book(driver, desired_date=desired_date, room=room, starting_time=starting_time)
+    book(driver, desired_date=desired_date, room=room, desired_time=desired_time)
 
 if __name__ == "__main__":
     main()
